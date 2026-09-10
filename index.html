@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Öğrenci Seçici - Kart Çevirme Efektli</title>
+  <title>Öğrenci Seçici - Bulut Senkronize</title>
   <!-- Excel Okuma Kütüphanesi -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Konfeti Efekti Kütüphanesi -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Firebase Kütüphaneleri (Compat Sürümü) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -26,56 +29,48 @@
       position: relative;
     }
 
-    /* SOL ÜST BUTONLAR GRUBU */
-    .top-left-buttons {
+    /* ÜST BUTONLAR GENEL KONTEYNERİ */
+    .top-buttons-container {
       position: fixed;
-      top: 20px;
-      left: 20px;
+      top: max(15px, env(safe-area-inset-top));
+      left: 10px;
+      right: 10px;
       display: flex;
-      gap: 10px;
-      z-index: 100;
-    }
-    .top-btn {
-      background-color: #ffffff;
-      color: #333;
-      border: 1px solid #ccc;
-      border-radius: 30px;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-    .top-btn:hover {
-      background-color: #e9ecef;
-      transform: scale(1.05);
+      z-index: 100;
+      pointer-events: none;
     }
 
-    /* TAM EKRAN BUTONU */
-    .fullscreen-btn {
-      position: fixed;
-      top: 20px;
-      right: 20px;
+    .top-left-buttons {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .top-btn, .fullscreen-btn {
       background-color: #ffffff;
       color: #333;
       border: 1px solid #ccc;
-      border-radius: 30px;
-      padding: 10px 18px;
-      font-size: 14px;
+      border-radius: 35px;
+      padding: 10px 16px;
+      font-size: 15px;
       font-weight: bold;
       cursor: pointer;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      z-index: 100;
       display: flex;
       align-items: center;
       gap: 6px;
       transition: all 0.2s ease;
+      pointer-events: auto;
+      white-space: nowrap;
     }
-    .fullscreen-btn:hover {
+
+    .top-btn span:first-child, .fullscreen-btn span:first-child {
+      font-size: 18px;
+    }
+
+    .top-btn:hover, .fullscreen-btn:hover {
       background-color: #e9ecef;
       transform: scale(1.05);
     }
@@ -92,7 +87,7 @@
       z-index: 10;
     }
 
-    /* 3D KART ALANI & ÇEVİRME EFEKTİ (BÜYÜTÜLDÜ) */
+    /* 3D KART ALANI & ÇEVİRME EFEKTİ */
     .card-container {
       width: 320px;
       height: 380px;
@@ -150,7 +145,6 @@
       transform: rotateY(180deg);
     }
 
-    /* RESİM BOYUTU BÜYÜTÜLDÜ */
     #student-image {
       width: 210px;
       height: 210px;
@@ -170,7 +164,6 @@
       word-break: break-word;
     }
 
-    /* DEĞERLENDİRME BUTONU (KARTIN ALTINDA) */
     .evaluation-buttons {
       display: none;
       gap: 15px;
@@ -250,6 +243,30 @@
       z-index: 20;
     }
 
+    .groups-trigger {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background-color: #6f42c1;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      padding: 12px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+    .groups-trigger:hover {
+      background-color: #5a3298;
+      transform: scale(1.05);
+    }
+
     .settings-modal {
       display: none;
       position: fixed;
@@ -267,18 +284,29 @@
       width: 90%;
       max-width: 680px;
       max-height: 90vh;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
       border-radius: 16px;
-      padding: 25px;
+      padding: 0 25px 25px 25px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      overflow: hidden;
     }
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      background: white;
+      padding: 20px 0 15px 0;
+      margin-bottom: 10px;
       border-bottom: 1px solid #eee;
-      padding-bottom: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .modal-body-content {
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 2px;
     }
     .btn-main-screen {
       background-color: #28a745;
@@ -440,7 +468,6 @@
       font-size: 12px;
     }
 
-    /* ÖĞRENCİ LİSTESİ STİLLERİ */
     #active-student-list {
       max-height: 380px; 
       overflow-y: auto; 
@@ -495,7 +522,6 @@
     .btn-minus-red { background-color: #ff8787; }
     .mini-btn:hover { opacity: 0.85; transform: scale(1.08); }
 
-    /* TEKLİ SIFIRLAMA BUTONU */
     .btn-single-reset {
       background-color: #adb5bd;
       color: white;
@@ -513,7 +539,6 @@
       background-color: #6c757d;
     }
 
-    /* PUANLAR MODALI STİLLERİ */
     .score-row {
       display: flex;
       justify-content: space-between;
@@ -540,6 +565,227 @@
     .score-negative { background-color: #fff5f5; color: #e03131; }
     .score-zero { background-color: #f1f3f5; color: #495057; }
 
+    .timer-display {
+      font-size: 52px;
+      font-weight: bold;
+      color: #2c3e50;
+      text-align: center;
+      margin: 15px 0;
+      font-family: monospace;
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      border: 2px solid #dee2e6;
+    }
+    .timer-presets {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .btn-preset {
+      background-color: #e9ecef;
+      color: #495057;
+      border: none;
+      padding: 8px 4px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.2s;
+    }
+    .btn-preset:hover {
+      background-color: #ced4da;
+    }
+    .timer-custom-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      align-items: center;
+      justify-content: center;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+    .timer-custom-row input {
+      width: 80px;
+      padding: 6px 10px;
+      font-size: 15px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .btn-timer-set {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-timer-set:hover {
+      background-color: #0056b3;
+    }
+    .timer-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .btn-timer-action {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-timer-start { background-color: #28a745; }
+    .btn-timer-start:hover { background-color: #218838; }
+    .btn-timer-pause { background-color: #ffc107; color: #212529; }
+    .btn-timer-pause:hover { background-color: #e0a800; }
+    .btn-timer-reset { background-color: #6c757d; }
+    .btn-timer-reset:hover { background-color: #5a6268; }
+
+    .groups-config-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .groups-config-control {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .groups-config-control label {
+      font-size: 13px;
+      font-weight: bold;
+      color: #495057;
+    }
+    .groups-config-panel select, .groups-config-panel input {
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+    .groups-action-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .btn-generate-groups {
+      flex: 2;
+      background-color: #6f42c1;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    .btn-generate-groups:hover {
+      background-color: #5a3298;
+    }
+    .btn-group-reset-scores {
+      flex: 1;
+      background-color: #ffc107;
+      color: #212529;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    .btn-group-reset-scores:hover {
+      background-color: #e0a800;
+    }
+
+    .groups-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .group-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .group-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #6f42c1;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .group-name-input {
+      font-size: 14px;
+      font-weight: bold;
+      color: #6f42c1;
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 2px 4px;
+      border-radius: 4px;
+      width: 110px;
+    }
+    .group-name-input:focus {
+      border-color: #6f42c1;
+      background: #fff;
+      outline: none;
+    }
+    .group-score-badge {
+      background: #6f42c1;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .group-member-item {
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px dashed #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .group-score-controls {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+    }
+    .btn-group-score {
+      flex: 1;
+      padding: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-gplus { background-color: #28a745; }
+    .btn-gminus { background-color: #dc3545; }
+    .btn-gplus:hover, .btn-gminus:hover { opacity: 0.85; }
+
     @media (max-width: 480px) {
       .card-container {
         width: 260px;
@@ -552,27 +798,45 @@
       .upload-options {
         grid-template-columns: 1fr;
       }
+      .top-btn, .fullscreen-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+      .top-btn span:first-child, .fullscreen-btn span:first-child {
+        font-size: 16px;
+      }
+      .timer-presets {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .groups-config-panel {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- SOL ÜST İKİ AYRI BUTON -->
-  <div class="top-left-buttons">
-    <button class="top-btn" onclick="openStudentListModal()">
-      <span>👥</span>
-      <span>Öğrenci Listesi</span>
-    </button>
-    <button class="top-btn" onclick="openStudentScoreModal()">
-      <span>⭐</span>
-      <span>Öğrenci Puanları</span>
+  <!-- ÜST BUTONLAR KONTEYNERİ -->
+  <div class="top-buttons-container">
+    <div class="top-left-buttons">
+      <button class="top-btn" onclick="openStudentListModal()">
+        <span>👥</span>
+        <span>Liste</span>
+      </button>
+      <button class="top-btn" onclick="openStudentScoreModal()">
+        <span>⭐</span>
+        <span>Puanlar</span>
+      </button>
+      <button class="top-btn" onclick="openTimerModal()">
+        <span>⏱️</span>
+        <span>Sayaç</span>
+      </button>
+    </div>
+    <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">
+      <span id="fullscreenIcon">⛶</span>
+      <span id="fullscreenText">Tam Ekran</span>
     </button>
   </div>
-
-  <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">
-    <span id="fullscreenIcon">⛶</span>
-    <span id="fullscreenText">Tam Ekran</span>
-  </button>
 
   <div class="main-screen">
     <div class="card-container">
@@ -601,6 +865,12 @@
     </div>
   </div>
 
+  <!-- SOL ALT KÖŞE GRUPLAR BUTONU -->
+  <button class="groups-trigger" onclick="openGroupsModal()">
+    <span>🧩</span>
+    <span>Gruplar</span>
+  </button>
+
   <button class="settings-trigger" onclick="openSettings()">⚙️ Öğrenci Yönetimi</button>
 
   <!-- ÖĞRENCİ LİSTESİ MODALI -->
@@ -610,10 +880,12 @@
         <h3>Öğrenci Listesi ve Puanlama</h3>
         <button class="btn-main-screen" onclick="closeStudentListModal()">Ana Ekran</button>
       </div>
-      <div style="margin-bottom: 8px; font-size: 13px; color: #666;">
-        Buradan öğrencilerin mevcut yüz sayılarını görebilir, artırabilir, azaltabilir veya tek tıkla sıfırlayabilirsiniz:
+      <div class="modal-body-content">
+        <div style="margin-bottom: 8px; font-size: 13px; color: #666;">
+          Buradan öğrencilerin mevcut yüz sayılarını görebilir, artırabilir, azaltabilir veya tek tıkla sıfırlayabilirsiniz:
+        </div>
+        <div id="active-student-list">Henüz öğrenci eklenmedi.</div>
       </div>
-      <div id="active-student-list">Henüz öğrenci eklenmedi.</div>
     </div>
   </div>
 
@@ -625,54 +897,56 @@
         <button class="btn-main-screen" onclick="closeSettings()">Ana Ekran</button>
       </div>
 
-      <div class="section-box">
-        <h4>Ses ve Efekt Ayarları</h4>
-        <label class="toggle-option">
-          <input type="checkbox" id="soundToggle" checked>
-          <span>Alkış ve Kutlama Müzik Efektini Çal</span>
-        </label>
-      </div>
-
-      <div class="section-box">
-        <h4>Tek Öğrenci Ekle</h4>
-        <div class="single-add-form">
-          <input type="text" id="singleNameInput" placeholder="Örn: Ahmet veya Zeynep">
-          <div class="gender-select-group">
-            <span style="font-size: 13px; color: #555;">Cinsiyet:</span>
-            <label><input type="radio" name="singleGender" value="E" checked> 👦 Erkek</label>
-            <label><input type="radio" name="singleGender" value="K"> 👧 Kız</label>
-          </div>
-          <label for="singleFileInput" class="btn-single-file" id="singleFileLabel">📷 Resim Seç (İsteğe Bağlı)</label>
-          <input type="file" id="singleFileInput" accept="image/*" onchange="updateSingleFileLabel(event)">
-          <button class="btn-add-student" onclick="addSingleStudent()">Listeye Ekle</button>
+      <div class="modal-body-content">
+        <div class="section-box">
+          <h4>Ses ve Efekt Ayarları</h4>
+          <label class="toggle-option">
+            <input type="checkbox" id="soundToggle" checked>
+            <span>Alkış ve Kutlama Müzik Efektini Çal</span>
+          </label>
         </div>
-      </div>
 
-      <div class="section-box">
-        <h4>Toplu Yükleme Seçenekleri</h4>
-        <div class="upload-options">
-          <div class="upload-card">
-            <span style="font-size: 12px; font-weight: bold; color: #333;">📊 Excel / Liste Yükle</span><br>
-            <span style="font-size: 11px; color: #666;">Kızlar için ismin sonuna (K) yazın</span><br>
-            <label for="textFileInput" class="btn-card-select">Liste Seç</label>
-            <input type="file" id="textFileInput" accept=".xlsx,.xls,.txt,.csv" onchange="handleListFileSelect(event)">
-          </div>
-
-          <div class="upload-card">
-            <span style="font-size: 12px; font-weight: bold; color: #333;">📁 Resim Klasörü Yükle</span><br>
-            <span style="font-size: 11px; color: #666;">Örn: Zeynep(K).jpg</span><br>
-            <label for="folderInput" class="btn-card-select">Klasör Seç</label>
-            <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*" onchange="handleFolderSelect(event)">
+        <div class="section-box">
+          <h4>Tek Öğrenci Ekle</h4>
+          <div class="single-add-form">
+            <input type="text" id="singleNameInput" placeholder="Örn: Ahmet veya Zeynep">
+            <div class="gender-select-group">
+              <span style="font-size: 13px; color: #555;">Cinsiyet:</span>
+              <label><input type="radio" name="singleGender" value="E" checked> 👦 Erkek</label>
+              <label><input type="radio" name="singleGender" value="K"> 👧 Kız</label>
+            </div>
+            <label for="singleFileInput" class="btn-single-file" id="singleFileLabel">📷 Resim Seç (İsteğe Bağlı)</label>
+            <input type="file" id="singleFileInput" accept="image/*" onchange="updateSingleFileLabel(event)">
+            <button class="btn-add-student" onclick="addSingleStudent()">Listeye Ekle</button>
           </div>
         </div>
-      </div>
 
-      <div style="text-align: left;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <label style="font-weight: bold; font-size: 14px;">Kayıtlı Öğrencileri Düzenle / Sil:</label>
-          <button class="btn-clear-all" onclick="clearAllStudents()">Tümünü Temizle</button>
+        <div class="section-box">
+          <h4>Toplu Yükleme Seçenekleri</h4>
+          <div class="upload-options">
+            <div class="upload-card">
+              <span style="font-size: 12px; font-weight: bold; color: #333;">📊 Excel / Liste Yükle</span><br>
+              <span style="font-size: 11px; color: #666;">Kızlar için ismin sonuna (K) yazın</span><br>
+              <label for="textFileInput" class="btn-card-select">Liste Seç</label>
+              <input type="file" id="textFileInput" accept=".xlsx,.xls,.txt,.csv" onchange="handleListFileSelect(event)">
+            </div>
+
+            <div class="upload-card">
+              <span style="font-size: 12px; font-weight: bold; color: #333;">📁 Resim Klasörü Yükle</span><br>
+              <span style="font-size: 11px; color: #666;">Örn: Zeynep(K).jpg</span><br>
+              <label for="folderInput" class="btn-card-select">Klasör Seç</label>
+              <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*" onchange="handleFolderSelect(event)">
+            </div>
+          </div>
         </div>
-        <div id="settings-student-list">Henüz öğrenci eklenmedi.</div>
+
+        <div style="text-align: left; padding-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="font-weight: bold; font-size: 14px;">Kayıtlı Öğrencileri Düzenle / Sil:</label>
+            <button class="btn-clear-all" onclick="clearAllStudents()">Tümünü Temizle</button>
+          </div>
+          <div id="settings-student-list">Henüz öğrenci eklenmedi.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -684,12 +958,84 @@
         <h3>Öğrenci Puan Pencereleri</h3>
         <button class="btn-main-screen" onclick="closeStudentScoreModal()">Ana Ekran</button>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 13px; color: #666;">Genel net puan durumları ve bireysel sıfırlama:</span>
-        <button class="btn-clear-all" onclick="resetAllScores()">Tüm Puanları Sıfırla</button>
+      <div class="modal-body-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 13px; color: #666;">Genel net puan durumları ve bireysel sıfırlama:</span>
+          <button class="btn-clear-all" onclick="resetAllScores()">Tüm Puanları Sıfırla</button>
+        </div>
+        <div id="score-student-list" style="max-height: 320px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 5px; background: #fff;">
+          Henüz öğrenci eklenmedi.
+        </div>
       </div>
-      <div id="score-student-list" style="max-height: 320px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 5px; background: #fff;">
-        Henüz öğrenci eklenmedi.
+    </div>
+  </div>
+
+  <!-- SÜRE ÖLÇER MODALI -->
+  <div class="settings-modal" id="timerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Süre Ölçer / Geri Sayım</h3>
+        <button class="btn-main-screen" onclick="closeTimerModal()">Ana Ekran</button>
+      </div>
+      <div class="modal-body-content" style="text-align: center;">
+        <div class="timer-presets">
+          <button class="btn-preset" onclick="setTimerPreset(30)">30 Sn</button>
+          <button class="btn-preset" onclick="setTimerPreset(60)">1 Dakika</button>
+          <button class="btn-preset" onclick="setTimerPreset(120)">2 Dakika</button>
+          <button class="btn-preset" onclick="setTimerPreset(180)">3 Dakika</button>
+          <button class="btn-preset" onclick="setTimerPreset(300)">5 Dakika</button>
+        </div>
+
+        <div class="timer-custom-row">
+          <span style="font-size: 13px; font-weight: bold; color: #495057;">Özel Dakika:</span>
+          <input type="number" id="customMinuteInput" min="1" max="60" value="1">
+          <button class="btn-timer-set" onclick="setCustomTimer()">Ayarla</button>
+        </div>
+
+        <div class="timer-display" id="timerDisplay">01:00</div>
+
+        <div class="timer-controls">
+          <button class="btn-timer-action btn-timer-start" id="timerStartBtn" onclick="toggleTimer()">Başlat</button>
+          <button class="btn-timer-action btn-timer-reset" onclick="resetTimer()">Sıfırla</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRUPLAR MODALI -->
+  <div class="settings-modal" id="groupsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Gelişmiş Öğrenci Grupları Oluşturucu</h3>
+        <button class="btn-main-screen" onclick="closeGroupsModal()">Ana Ekran</button>
+      </div>
+      <div class="modal-body-content">
+        <div class="groups-config-panel">
+          <div class="groups-config-control">
+            <label for="groupDistributionType">Dağılım Kriteri:</label>
+            <select id="groupDistributionType">
+              <option value="random">Rastgele Dağılım</option>
+              <option value="balanced">Puan / Performansa Göre Dengeli</option>
+              <option value="gender">Kız / Erkek Dengeli Dağılım</option>
+            </select>
+          </div>
+          <div class="groups-config-control">
+            <label for="groupCountInput">Grup Sayısı:</label>
+            <input type="number" id="groupCountInput" min="2" max="20" value="4">
+          </div>
+        </div>
+
+        <div class="groups-action-row">
+          <button class="btn-generate-groups" onclick="generateGroups()">Grup Oluştur / Karıştır</button>
+          <button class="btn-group-reset-scores" onclick="resetGroupScores()">Puanları Sıfırla</button>
+        </div>
+
+        <div style="margin-bottom: 10px; font-size: 13px; color: #666;">
+          Oluşan grupların isimlerini düzenleyebilir, etkinlik boyunca takımlara puan ekleyip çıkarabilirsiniz:
+        </div>
+        <div id="groupsContainer" class="groups-grid">
+          Henüz grup oluşturulmadı.
+        </div>
       </div>
     </div>
   </div>
@@ -697,15 +1043,53 @@
   <input type="file" id="editImageInput" accept="image/*" style="display:none;" onchange="handleEditImageSelect(event)">
 
 <script>
+  // ==========================================
+  // FIREBASE YAPILANDIRMASI
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyCkMVHOhpJ6M3owagfqXZ_Q_d_wXdHeWVo",
+    authDomain: "ogrencisecici.firebaseapp.com",
+    projectId: "ogrencisecici",
+    storageBucket: "ogrencisecici.firebasestorage.app",
+    messagingSenderId: "307183997727",
+    appId: "1:307183997727:web:cabe9fc057f4546403d62a",
+    measurementId: "G-4SRB45XHGN"
+  };
+
+  let isFirebaseInitialized = false;
+  let dbRef = null;
+
+  try {
+    if (firebaseConfig.apiKey !== "BURAYA_FIREBASE_API_KEY_YAZILACAK") {
+      firebase.initializeApp(firebaseConfig);
+      dbRef = firebase.database().ref('sinif_verileri');
+      isFirebaseInitialized = true;
+    }
+  } catch (e) {
+    console.log("Firebase başlatılamadı, yerel depolama kullanılacak.", e);
+  }
+
   let students = [];
   let remaining = [];
   let singleSelectedImageData = null;
   let currentlyEditingStudentId = null;
   let isSelecting = false;
   let currentSelectedStudentId = null;
+  let activeGroupsState = [];
+
+  let timerInterval = null;
+  let totalSecondsLeft = 60;
+  let initialTimerSeconds = 60;
+  let isTimerRunning = false;
 
   const defaultBoyAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='100' fill='%23e3f2fd'/><circle cx='100' cy='85' r='45' fill='%23ffccbc'/><path d='M55 75 Q100 20 145 75 Q130 45 100 45 Q70 45 55 75 Z' fill='%235d4037'/><circle cx='85' cy='80' r='5' fill='%23333'/><circle cx='115' cy='80' r='5' fill='%23333'/><path d='M90 100 Q100 110 110 100' stroke='%23333' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M40 160 Q100 110 160 160 Z' fill='%232196f3'/></svg>";
   const defaultGirlAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='100' fill='%23fce4ec'/><circle cx='100' cy='85' r='45' fill='%23ffccbc'/><path d='M55 75 Q100 20 145 75 Q130 50 100 50 Q70 50 55 75 Z' fill='%23ad1457'/><path d='M55 75 Q40 120 65 150 Q50 110 55 75 Z' fill='%23ad1457'/><path d='M145 75 Q160 120 135 150 Q150 110 145 75 Z' fill='%23ad1457'/><circle cx='85' cy='80' r='5' fill='%23333'/><circle cx='115' cy='80' r='5' fill='%23333'/><path d='M90 100 Q100 110 110 100' stroke='%23333' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M40 160 Q100 110 160 160 Z' fill='%23e91e63'/></svg>";
+
+  const funTeamNames = [
+    "Yıldızlar", "Şimşekler", "Bilginler", "Kartallar", "Fırtına", 
+    "Dehalar", "Atılımcılar", "Gezginler", "Piyonlar", "Vezirler", 
+    "Alfa Takımı", "Zeka Küpleri", "Meşaleler", "Hedef 100", "Zirvedekiler"
+  ];
 
   function toggleFullscreen() {
     const iconElem = document.getElementById('fullscreenIcon');
@@ -762,18 +1146,16 @@
     });
   }
 
-  // YENİ EKLENEN: Güleryüz butonuna özel tatlı ses efekti
   function playSmileSuccessSound() {
     if (!document.getElementById('soundToggle').checked) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    // Başarı/Ödül akoru (Neşeli ve yukarı doğru giden melodi)
-    const notes = [440.00, 554.37, 659.25, 880.00]; // La major akoru arpeji
+    const notes = [440.00, 554.37, 659.25, 880.00];
     notes.forEach((freq, index) => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
-      osc.type = 'triangle'; // Daha yumuşak, kulak tırmalamayan ton
+      osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (index * 0.06));
 
       gain.gain.setValueAtTime(0.15, audioCtx.currentTime + (index * 0.06));
@@ -784,6 +1166,29 @@
 
       osc.start(audioCtx.currentTime + (index * 0.06));
       osc.stop(audioCtx.currentTime + (index * 0.06) + 0.3);
+    });
+  }
+
+  function playAlarmSound() {
+    if (!document.getElementById('soundToggle').checked) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const notes = [880, 659, 880, 659];
+    notes.forEach((freq, index) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (index * 0.15));
+
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime + (index * 0.15));
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (index * 0.15) + 0.12);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(audioCtx.currentTime + (index * 0.15));
+      osc.stop(audioCtx.currentTime + (index * 0.15) + 0.12);
     });
   }
 
@@ -805,7 +1210,6 @@
     }
   }
 
-  // YENİ EKLENEN: Güleryüz butonuna basıldığında tetiklenecek küçük neşeli konfeti
   function triggerSmileConfetti() {
     if (typeof confetti === 'function') {
       confetti({
@@ -819,6 +1223,7 @@
 
   window.onload = function() {
     loadStudentsFromStorage();
+    updateTimerDisplay();
   };
 
   function openSettings() {
@@ -845,32 +1250,266 @@
     document.getElementById('studentScoreModal').style.display = 'none';
   }
 
+  function openTimerModal() {
+    document.getElementById('timerModal').style.display = 'flex';
+  }
+  function closeTimerModal() {
+    document.getElementById('timerModal').style.display = 'none';
+  }
+
+  function openGroupsModal() {
+    document.getElementById('groupsModal').style.display = 'flex';
+    if (activeGroupsState.length > 0) {
+      renderGroupsUI();
+    }
+  }
+  function closeGroupsModal() {
+    document.getElementById('groupsModal').style.display = 'none';
+  }
+
+  function generateGroups() {
+    if (students.length === 0) {
+      alert("Önce öğrenci eklemelisiniz!");
+      return;
+    }
+    const groupCountInput = parseInt(document.getElementById('groupCountInput').value) || 4;
+    const groupCount = Math.max(1, Math.min(groupCountInput, students.length));
+    const distributionType = document.getElementById('groupDistributionType').value;
+
+    let pool = [...students];
+
+    if (distributionType === 'random') {
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+    } else if (distributionType === 'balanced') {
+      pool.sort((a, b) => ((b.smileCount || 0) - (b.sadCount || 0)) - ((a.smileCount || 0) - (a.sadCount || 0)));
+    } else if (distributionType === 'gender') {
+      let boys = pool.filter(s => s.gender === 'E');
+      let girls = pool.filter(s => s.gender === 'K');
+      boys.sort(() => Math.random() - 0.5);
+      girls.sort(() => Math.random() - 0.5);
+      pool = [];
+      let maxLen = Math.max(boys.length, girls.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (boys[i]) pool.push(boys[i]);
+        if (girls[i]) pool.push(girls[i]);
+      }
+    }
+
+    let groups = Array.from({ length: groupCount }, () => []);
+
+    if (distributionType === 'balanced') {
+      let index = 0;
+      let forward = true;
+      pool.forEach(student => {
+        groups[index].push(student);
+        if (forward) {
+          index++;
+          if (index >= groupCount) { index = groupCount - 1; forward = false; }
+        } else {
+          index--;
+          if (index < 0) { index = 0; forward = true; }
+        }
+      });
+    } else {
+      pool.forEach((student, index) => {
+        groups[index % groupCount].push(student);
+      });
+    }
+
+    activeGroupsState = groups.map((group, idx) => {
+      const existingTeam = activeGroupsState[idx];
+      return {
+        name: existingTeam ? existingTeam.name : (funTeamNames[idx % funTeamNames.length] + (idx >= funTeamNames.length ? ` ${idx+1}` : '')),
+        score: existingTeam ? existingTeam.score : 0,
+        members: group
+      };
+    });
+
+    renderGroupsUI();
+  }
+
+  function renderGroupsUI() {
+    const container = document.getElementById('groupsContainer');
+    container.innerHTML = '';
+
+    if (activeGroupsState.length === 0) {
+      container.innerHTML = 'Henüz grup oluşturulmadı.';
+      return;
+    }
+
+    activeGroupsState.forEach((group, idx) => {
+      const card = document.createElement('div');
+      card.className = 'group-card';
+      
+      let membersHtml = '';
+      group.members.forEach(m => {
+        const genderIcon = m.gender === 'K' ? '👧' : '👦';
+        membersHtml += `<div class="group-member-item"><span>${m.name}</span> <span>${genderIcon}</span></div>`;
+      });
+
+      card.innerHTML = `
+        <div>
+          <div class="group-card-header">
+            <input type="text" class="group-name-input" value="${group.name}" onchange="updateGroupName(${idx}, this.value)">
+            <span class="group-score-badge">${group.score} Puan</span>
+          </div>
+          <div>${membersHtml}</div>
+        </div>
+        <div class="group-score-controls">
+          <button class="btn-group-score btn-gminus" onclick="updateGroupScore(${idx}, -1)">-1 Puan</button>
+          <button class="btn-group-score btn-gplus" onclick="updateGroupScore(${idx}, 1)">+1 Puan</button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function updateGroupName(index, newName) {
+    if (activeGroupsState[index]) {
+      activeGroupsState[index].name = newName;
+    }
+  }
+
+  function updateGroupScore(index, amount) {
+    if (activeGroupsState[index]) {
+      activeGroupsState[index].score += amount;
+      renderGroupsUI();
+    }
+  }
+
+  function resetGroupScores() {
+    if (activeGroupsState.length === 0) return;
+    if (confirm("Tüm grup puanlarını sıfırlamak istediğinize emin misiniz?")) {
+      activeGroupsState.forEach(g => g.score = 0);
+      renderGroupsUI();
+    }
+  }
+
+  function setTimerPreset(seconds) {
+    pauseTimer();
+    initialTimerSeconds = seconds;
+    totalSecondsLeft = seconds;
+    updateTimerDisplay();
+  }
+
+  function setCustomTimer() {
+    const minInput = document.getElementById('customMinuteInput');
+    let minutes = parseInt(minInput.value);
+    if (isNaN(minutes) || minutes < 1) minutes = 1;
+    if (minutes > 60) minutes = 60;
+    minInput.value = minutes;
+    
+    setTimerPreset(minutes * 60);
+  }
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(totalSecondsLeft / 60);
+    const seconds = totalSecondsLeft % 60;
+    const displayString = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    document.getElementById('timerDisplay').textContent = displayString;
+  }
+
+  function toggleTimer() {
+    if (isTimerRunning) {
+      pauseTimer();
+    } else {
+      startTimer();
+    }
+  }
+
+  function startTimer() {
+    if (totalSecondsLeft <= 0) return;
+    isTimerRunning = true;
+    const startBtn = document.getElementById('timerStartBtn');
+    startBtn.textContent = 'Duraklat';
+    startBtn.className = 'btn-timer-action btn-timer-pause';
+
+    timerInterval = setInterval(() => {
+      if (totalSecondsLeft > 0) {
+        totalSecondsLeft--;
+        updateTimerDisplay();
+      } else {
+        pauseTimer();
+        playAlarmSound();
+        alert("Süre bitti!");
+      }
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    isTimerRunning = false;
+    clearInterval(timerInterval);
+    const startBtn = document.getElementById('timerStartBtn');
+    startBtn.textContent = 'Başlat';
+    startBtn.className = 'btn-timer-action btn-timer-start';
+  }
+
+  function resetTimer() {
+    pauseTimer();
+    totalSecondsLeft = initialTimerSeconds;
+    updateTimerDisplay();
+  }
+
+  // ==========================================
+  // SENKRONİZASYON & VERİ YÖNETİMİ
+  // ==========================================
   function saveStudentsToStorage() {
-    try {
-      localStorage.setItem('saved_students', JSON.stringify(students));
-      localStorage.setItem('saved_remaining', JSON.stringify(remaining));
-    } catch (e) {
-      alert("Tarayıcı hafızası doldu!");
+    if (isFirebaseInitialized && dbRef) {
+      dbRef.set({
+        students: students,
+        remaining: remaining
+      });
+    } else {
+      try {
+        localStorage.setItem('saved_students', JSON.stringify(students));
+        localStorage.setItem('saved_remaining', JSON.stringify(remaining));
+      } catch (e) {
+        alert("Tarayıcı hafızası doldu!");
+      }
     }
   }
 
   function loadStudentsFromStorage() {
-    const saved = localStorage.getItem('saved_students');
-    const savedRem = localStorage.getItem('saved_remaining');
-    if (saved) {
-      try {
-        students = JSON.parse(saved);
+    if (isFirebaseInitialized && dbRef) {
+      dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          students = data.students || [];
+          remaining = data.remaining || [...students];
+        } else {
+          students = [];
+          remaining = [];
+        }
         students.forEach(s => {
           if (s.smileCount === undefined) s.smileCount = 0;
           if (s.sadCount === undefined) s.sadCount = 0;
         });
-        remaining = savedRem ? JSON.parse(savedRem) : [...students];
-      } catch(e) {
-        students = [];
-        remaining = [];
+        updateCounter();
+        renderActiveStudentList();
+        renderSettingsStudentList();
+        renderScoreStudentList();
+      });
+    } else {
+      const saved = localStorage.getItem('saved_students');
+      const savedRem = localStorage.getItem('saved_remaining');
+      if (saved) {
+        try {
+          students = JSON.parse(saved);
+          students.forEach(s => {
+            if (s.smileCount === undefined) s.smileCount = 0;
+            if (s.sadCount === undefined) s.sadCount = 0;
+          });
+          remaining = savedRem ? JSON.parse(savedRem) : [...students];
+        } catch(e) {
+          students = [];
+          remaining = [];
+        }
       }
+      updateCounter();
     }
-    updateCounter();
   }
 
   function compressImage(img, callback) {
@@ -1110,10 +1749,15 @@
     if (confirm("Tüm öğrencileri silmek istediğinize emin misiniz?")) {
       students = [];
       remaining = [];
+      activeGroupsState = [];
       currentSelectedStudentId = null;
       document.getElementById('evaluationButtons').style.display = 'none';
-      localStorage.removeItem('saved_students');
-      localStorage.removeItem('saved_remaining');
+      if (isFirebaseInitialized && dbRef) {
+        dbRef.remove();
+      } else {
+        localStorage.removeItem('saved_students');
+        localStorage.removeItem('saved_remaining');
+      }
       renderSettingsStudentList();
       updateCounter();
     }
@@ -1170,21 +1814,18 @@
           <strong>${student.name}</strong> <span>(${genderText})</span>
         </div>
         <div class="score-group">
-          <!-- Güleryüz Alanı -->
           <div class="score-box">
             <span>😊</span>
             <span>${smile}</span>
             <button class="mini-btn btn-plus-green" onclick="updateStudentScore(${student.id}, 'smile', 1)">+</button>
             <button class="mini-btn btn-minus-green" onclick="updateStudentScore(${student.id}, 'smile', -1)">-</button>
           </div>
-          <!-- Üzgün Yüz Alanı -->
           <div class="score-box">
             <span>😢</span>
             <span>${sad}</span>
             <button class="mini-btn btn-plus-red" onclick="updateStudentScore(${student.id}, 'sad', 1)">+</button>
             <button class="mini-btn btn-minus-red" onclick="updateStudentScore(${student.id}, 'sad', -1)">-</button>
           </div>
-          <!-- Tekli Sıfırlama Butonu -->
           <button class="btn-single-reset" onclick="resetSingleStudentScore(${student.id})" title="Bu Öğrencinin Puanlarını Sıfırla">↺ Sıfırla</button>
         </div>
       `;
@@ -1272,8 +1913,8 @@
 
     if (type === 'smile') {
       student.smileCount = (student.smileCount || 0) + 1;
-      playSmileSuccessSound(); // Güleryüz butonuna basıldığında özel neşeli ses efekti çalması sağlandı
-      triggerSmileConfetti();    // Küçük renkli ödül konfetisi patlatıldı
+      playSmileSuccessSound();
+      triggerSmileConfetti();
     }
 
     saveStudentsToStorage();
