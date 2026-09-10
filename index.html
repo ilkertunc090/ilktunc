@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Öğrenci Seçici - Kart Çevirme Efektli</title>
+  <!-- Excel Okuma Kütüphanesi -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Konfeti Efekti Kütüphanesi -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* SOL ÜST BUTONLAR GRUBU */
+    .top-left-buttons {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+    .top-btn {
+      background-color: #ffffff;
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 30px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .top-btn:hover {
+      background-color: #e9ecef;
+      transform: scale(1.05);
+    }
+
+    /* TAM EKRAN BUTONU */
+    .fullscreen-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #ffffff;
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 30px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .fullscreen-btn:hover {
+      background-color: #e9ecef;
+      transform: scale(1.05);
+    }
+
+    /* ANA EKRAN */
+    .main-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    /* 3D KART ALANI & ÇEVİRME EFEKTİ (BÜYÜTÜLDÜ) */
+    .card-container {
+      width: 320px;
+      height: 380px;
+      perspective: 1000px;
+      margin-bottom: 15px;
+    }
+
+    .flip-card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .flip-card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      border: 4px solid #fff;
+      padding: 15px;
+    }
+
+    .card-front {
+      background: linear-gradient(135deg, #007bff, #6f42c1);
+      color: white;
+    }
+
+    .card-front .question-mark {
+      font-size: 110px;
+      font-weight: bold;
+      text-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .card-front .card-hint {
+      font-size: 18px;
+      margin-top: 10px;
+      opacity: 0.9;
+    }
+
+    .card-back {
+      background: white;
+      color: #2c3e50;
+      transform: rotateY(180deg);
+    }
+
+    /* RESİM BOYUTU BÜYÜTÜLDÜ */
+    #student-image {
+      width: 210px;
+      height: 210px;
+      border-radius: 16px;
+      object-fit: cover;
+      background-color: #f8f9fa;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+      border: 4px solid #007bff;
+      padding: 4px;
+    }
+
+    #student-name {
+      font-size: 26px;
+      font-weight: bold;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    /* DEĞERLENDİRME BUTONU (KARTIN ALTINDA) */
+    .evaluation-buttons {
+      display: none;
+      gap: 15px;
+      margin-top: 10px;
+      margin-bottom: 5px;
+    }
+    .btn-smile {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      padding: 10px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(40,167,69,0.3);
+      transition: transform 0.1s;
+    }
+    .btn-smile:hover {
+      background-color: #218838;
+      transform: scale(1.05);
+    }
+
+    #counter {
+      margin-top: 5px;
+      font-size: 15px;
+      color: #7f8c8d;
+      font-weight: bold;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .btn-select {
+      background-color: #007bff;
+      color: white;
+      font-size: 20px;
+      padding: 12px 36px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+      transition: transform 0.1s, background-color 0.2s;
+    }
+    .btn-select:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+    .btn-reset {
+      background-color: #6c757d;
+      color: white;
+      font-size: 15px;
+      padding: 12px 22px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-reset:hover {
+      background-color: #5a6268;
+    }
+
+    .settings-trigger {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #343a40;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      padding: 12px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 20;
+    }
+
+    .settings-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      width: 90%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .btn-main-screen {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .section-box {
+      background: #f8f9fa;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      margin-bottom: 15px;
+    }
+    .section-box h4 {
+      margin-bottom: 8px;
+      color: #495057;
+      font-size: 14px;
+    }
+
+    .toggle-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #333;
+      cursor: pointer;
+    }
+
+    .single-add-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .single-add-form input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .gender-select-group {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      font-size: 14px;
+      color: #333;
+      padding: 4px 0;
+    }
+    .gender-select-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .single-add-form input[type="file"] {
+      display: none;
+    }
+    .btn-single-file {
+      background-color: #6f42c1;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .btn-add-student {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .upload-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .upload-card {
+      background: #fff;
+      border: 1px dashed #17a2b8;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .upload-card input[type="file"] {
+      display: none;
+    }
+    .btn-card-select {
+      background-color: #17a2b8;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-block;
+      font-weight: bold;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    #settings-student-list {
+      margin-top: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      padding: 5px;
+      background: #fff;
+    }
+    .student-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    .student-actions {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .btn-edit-img {
+      background-color: #ffc107;
+      color: #212529;
+      border: none;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .btn-delete {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .btn-clear-all {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    /* ÖĞRENCİ LİSTESİ STİLLERİ */
+    #active-student-list {
+      max-height: 380px; 
+      overflow-y: auto; 
+      border: 1px solid #eee; 
+      border-radius: 6px; 
+      padding: 5px; 
+      background: #fff;
+    }
+    .active-student-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    .score-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .score-box {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+    .score-box span {
+      font-weight: bold;
+      min-width: 16px;
+      text-align: center;
+    }
+    .mini-btn {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .btn-plus-green { background-color: #28a745; }
+    .btn-minus-green { background-color: #82c91e; }
+    .btn-plus-red { background-color: #e03131; }
+    .btn-minus-red { background-color: #ff8787; }
+    .mini-btn:hover { opacity: 0.85; transform: scale(1.08); }
+
+    /* TEKLİ SIFIRLAMA BUTONU */
+    .btn-single-reset {
+      background-color: #adb5bd;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .btn-single-reset:hover {
+      background-color: #6c757d;
+    }
+
+    /* PUANLAR MODALI STİLLERİ */
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    .score-info-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .score-badge {
+      font-weight: bold;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-positive { background-color: #e6fcf5; color: #0ca678; }
+    .score-negative { background-color: #fff5f5; color: #e03131; }
+    .score-zero { background-color: #f1f3f5; color: #495057; }
+
+    @media (max-width: 480px) {
+      .card-container {
+        width: 260px;
+        height: 320px;
+      }
+      #student-image {
+        width: 160px;
+        height: 160px;
+      }
+      .upload-options {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SOL ÜST İKİ AYRI BUTON -->
+  <div class="top-left-buttons">
+    <button class="top-btn" onclick="openStudentListModal()">
+      <span>👥</span>
+      <span>Öğrenci Listesi</span>
+    </button>
+    <button class="top-btn" onclick="openStudentScoreModal()">
+      <span>⭐</span>
+      <span>Öğrenci Puanları</span>
+    </button>
+  </div>
+
+  <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">
+    <span id="fullscreenIcon">⛶</span>
+    <span id="fullscreenText">Tam Ekran</span>
+  </button>
+
+  <div class="main-screen">
+    <div class="card-container">
+      <div class="flip-card" id="flipCard">
+        <div class="card-face card-front">
+          <div class="question-mark">?</div>
+          <div class="card-hint">Sıradaki Kim?</div>
+        </div>
+        <div class="card-face card-back">
+          <img id="student-image" src="" alt="Öğrenci Resmi">
+          <div id="student-name">Öğrenci Seçin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEĞERLENDİRME BUTONU -->
+    <div class="evaluation-buttons" id="evaluationButtons">
+      <button class="btn-smile" onclick="rateCurrentStudent('smile')">😊 Güleryüz Ver (+1)</button>
+    </div>
+
+    <div id="counter">Kalan Öğrenci: 0 / Toplam: 0</div>
+
+    <div class="action-buttons">
+      <button class="btn-select" id="btnSelect" onclick="startSelectionProcess()">Seç</button>
+      <button class="btn-reset" onclick="resetList()">Sıfırla</button>
+    </div>
+  </div>
+
+  <button class="settings-trigger" onclick="openSettings()">⚙️ Öğrenci Yönetimi</button>
+
+  <!-- ÖĞRENCİ LİSTESİ MODALI -->
+  <div class="settings-modal" id="studentListModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Öğrenci Listesi ve Puanlama</h3>
+        <button class="btn-main-screen" onclick="closeStudentListModal()">Ana Ekran</button>
+      </div>
+      <div style="margin-bottom: 8px; font-size: 13px; color: #666;">
+        Buradan öğrencilerin mevcut yüz sayılarını görebilir, artırabilir, azaltabilir veya tek tıkla sıfırlayabilirsiniz:
+      </div>
+      <div id="active-student-list">Henüz öğrenci eklenmedi.</div>
+    </div>
+  </div>
+
+  <!-- AYARLAR & ÖĞRENCİ YÖNETİMİ MODALI -->
+  <div class="settings-modal" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Öğrenci ve Sistem Yönetimi</h3>
+        <button class="btn-main-screen" onclick="closeSettings()">Ana Ekran</button>
+      </div>
+
+      <div class="section-box">
+        <h4>Ses ve Efekt Ayarları</h4>
+        <label class="toggle-option">
+          <input type="checkbox" id="soundToggle" checked>
+          <span>Alkış ve Kutlama Müzik Efektini Çal</span>
+        </label>
+      </div>
+
+      <div class="section-box">
+        <h4>Tek Öğrenci Ekle</h4>
+        <div class="single-add-form">
+          <input type="text" id="singleNameInput" placeholder="Örn: Ahmet veya Zeynep">
+          <div class="gender-select-group">
+            <span style="font-size: 13px; color: #555;">Cinsiyet:</span>
+            <label><input type="radio" name="singleGender" value="E" checked> 👦 Erkek</label>
+            <label><input type="radio" name="singleGender" value="K"> 👧 Kız</label>
+          </div>
+          <label for="singleFileInput" class="btn-single-file" id="singleFileLabel">📷 Resim Seç (İsteğe Bağlı)</label>
+          <input type="file" id="singleFileInput" accept="image/*" onchange="updateSingleFileLabel(event)">
+          <button class="btn-add-student" onclick="addSingleStudent()">Listeye Ekle</button>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <h4>Toplu Yükleme Seçenekleri</h4>
+        <div class="upload-options">
+          <div class="upload-card">
+            <span style="font-size: 12px; font-weight: bold; color: #333;">📊 Excel / Liste Yükle</span><br>
+            <span style="font-size: 11px; color: #666;">Kızlar için ismin sonuna (K) yazın</span><br>
+            <label for="textFileInput" class="btn-card-select">Liste Seç</label>
+            <input type="file" id="textFileInput" accept=".xlsx,.xls,.txt,.csv" onchange="handleListFileSelect(event)">
+          </div>
+
+          <div class="upload-card">
+            <span style="font-size: 12px; font-weight: bold; color: #333;">📁 Resim Klasörü Yükle</span><br>
+            <span style="font-size: 11px; color: #666;">Örn: Zeynep(K).jpg</span><br>
+            <label for="folderInput" class="btn-card-select">Klasör Seç</label>
+            <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*" onchange="handleFolderSelect(event)">
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-weight: bold; font-size: 14px;">Kayıtlı Öğrencileri Düzenle / Sil:</label>
+          <button class="btn-clear-all" onclick="clearAllStudents()">Tümünü Temizle</button>
+        </div>
+        <div id="settings-student-list">Henüz öğrenci eklenmedi.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÖĞRENCİ PUANLARI MODALI -->
+  <div class="settings-modal" id="studentScoreModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Öğrenci Puan Pencereleri</h3>
+        <button class="btn-main-screen" onclick="closeStudentScoreModal()">Ana Ekran</button>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 13px; color: #666;">Genel net puan durumları ve bireysel sıfırlama:</span>
+        <button class="btn-clear-all" onclick="resetAllScores()">Tüm Puanları Sıfırla</button>
+      </div>
+      <div id="score-student-list" style="max-height: 320px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 5px; background: #fff;">
+        Henüz öğrenci eklenmedi.
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="editImageInput" accept="image/*" style="display:none;" onchange="handleEditImageSelect(event)">
+
+<script>
+  let students = [];
+  let remaining = [];
+  let singleSelectedImageData = null;
+  let currentlyEditingStudentId = null;
+  let isSelecting = false;
+  let currentSelectedStudentId = null;
+
+  const defaultBoyAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='100' fill='%23e3f2fd'/><circle cx='100' cy='85' r='45' fill='%23ffccbc'/><path d='M55 75 Q100 20 145 75 Q130 45 100 45 Q70 45 55 75 Z' fill='%235d4037'/><circle cx='85' cy='80' r='5' fill='%23333'/><circle cx='115' cy='80' r='5' fill='%23333'/><path d='M90 100 Q100 110 110 100' stroke='%23333' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M40 160 Q100 110 160 160 Z' fill='%232196f3'/></svg>";
+  const defaultGirlAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='100' fill='%23fce4ec'/><circle cx='100' cy='85' r='45' fill='%23ffccbc'/><path d='M55 75 Q100 20 145 75 Q130 50 100 50 Q70 50 55 75 Z' fill='%23ad1457'/><path d='M55 75 Q40 120 65 150 Q50 110 55 75 Z' fill='%23ad1457'/><path d='M145 75 Q160 120 135 150 Q150 110 145 75 Z' fill='%23ad1457'/><circle cx='85' cy='80' r='5' fill='%23333'/><circle cx='115' cy='80' r='5' fill='%23333'/><path d='M90 100 Q100 110 110 100' stroke='%23333' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M40 160 Q100 110 160 160 Z' fill='%23e91e63'/></svg>";
+
+  function toggleFullscreen() {
+    const iconElem = document.getElementById('fullscreenIcon');
+    const textElem = document.getElementById('fullscreenText');
+
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        iconElem.textContent = '🗗';
+        textElem.textContent = 'Küçült';
+      }).catch(err => {
+        alert(`Tam ekran modu başlatılamadı: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          iconElem.textContent = '⛶';
+          textElem.textContent = 'Tam Ekran';
+        });
+      }
+    }
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    const iconElem = document.getElementById('fullscreenIcon');
+    const textElem = document.getElementById('fullscreenText');
+    if (!document.fullscreenElement) {
+      iconElem.textContent = '⛶';
+      textElem.textContent = 'Tam Ekran';
+    }
+  });
+
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function playCheerSound() {
+    if (!document.getElementById('soundToggle').checked) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const notes = [261.63, 329.63, 392.00, 523.25];
+    notes.forEach((freq, index) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (index * 0.08));
+
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime + (index * 0.08));
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (index * 0.08) + 0.4);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(audioCtx.currentTime + (index * 0.08));
+      osc.stop(audioCtx.currentTime + (index * 0.08) + 0.4);
+    });
+  }
+
+  // YENİ EKLENEN: Güleryüz butonuna özel tatlı ses efekti
+  function playSmileSuccessSound() {
+    if (!document.getElementById('soundToggle').checked) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    // Başarı/Ödül akoru (Neşeli ve yukarı doğru giden melodi)
+    const notes = [440.00, 554.37, 659.25, 880.00]; // La major akoru arpeji
+    notes.forEach((freq, index) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'triangle'; // Daha yumuşak, kulak tırmalamayan ton
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (index * 0.06));
+
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime + (index * 0.06));
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (index * 0.06) + 0.3);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(audioCtx.currentTime + (index * 0.06));
+      osc.stop(audioCtx.currentTime + (index * 0.06) + 0.3);
+    });
+  }
+
+  function triggerConfetti(gender) {
+    if (typeof confetti === 'function') {
+      let colors = ['#007bff', '#28a745', '#17a2b8', '#ffc107'];
+      if (gender === 'E') {
+        colors = ['#007bff', '#00d2ff', '#28a745', '#20c997', '#0056b3'];
+      } else if (gender === 'K') {
+        colors = ['#ff69b4', '#da70d6', '#ff1493', '#ba55d3', '#db7093'];
+      }
+
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: colors
+      });
+    }
+  }
+
+  // YENİ EKLENEN: Güleryüz butonuna basıldığında tetiklenecek küçük neşeli konfeti
+  function triggerSmileConfetti() {
+    if (typeof confetti === 'function') {
+      confetti({
+        particleCount: 40,
+        spread: 50,
+        origin: { y: 0.75 },
+        colors: ['#28a745', '#ffc107', '#20c997']
+      });
+    }
+  }
+
+  window.onload = function() {
+    loadStudentsFromStorage();
+  };
+
+  function openSettings() {
+    renderSettingsStudentList();
+    document.getElementById('settingsModal').style.display = 'flex';
+  }
+  function closeSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+  }
+
+  function openStudentListModal() {
+    renderActiveStudentList();
+    document.getElementById('studentListModal').style.display = 'flex';
+  }
+  function closeStudentListModal() {
+    document.getElementById('studentListModal').style.display = 'none';
+  }
+
+  function openStudentScoreModal() {
+    renderScoreStudentList();
+    document.getElementById('studentScoreModal').style.display = 'flex';
+  }
+  function closeStudentScoreModal() {
+    document.getElementById('studentScoreModal').style.display = 'none';
+  }
+
+  function saveStudentsToStorage() {
+    try {
+      localStorage.setItem('saved_students', JSON.stringify(students));
+      localStorage.setItem('saved_remaining', JSON.stringify(remaining));
+    } catch (e) {
+      alert("Tarayıcı hafızası doldu!");
+    }
+  }
+
+  function loadStudentsFromStorage() {
+    const saved = localStorage.getItem('saved_students');
+    const savedRem = localStorage.getItem('saved_remaining');
+    if (saved) {
+      try {
+        students = JSON.parse(saved);
+        students.forEach(s => {
+          if (s.smileCount === undefined) s.smileCount = 0;
+          if (s.sadCount === undefined) s.sadCount = 0;
+        });
+        remaining = savedRem ? JSON.parse(savedRem) : [...students];
+      } catch(e) {
+        students = [];
+        remaining = [];
+      }
+    }
+    updateCounter();
+  }
+
+  function compressImage(img, callback) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let width = img.width;
+    let height = img.height;
+    const maxSize = 250;
+
+    if (width > height) {
+      if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+    } else {
+      if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    callback(canvas.toDataURL('image/jpeg', 0.6));
+  }
+
+  function handleListFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    if (fileExt === 'xlsx' || fileExt === 'xls') {
+      readExcelFile(file);
+    } else {
+      readTextFile(file);
+    }
+    event.target.value = '';
+  }
+
+  function readExcelFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      let names = [];
+      jsonData.forEach(row => {
+        if (row && row[0]) {
+          const nameStr = String(row[0]).trim();
+          if (nameStr.length > 0) names.push(nameStr);
+        }
+      });
+      addNamesToStudents(names);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function readTextFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const content = e.target.result;
+      const lines = content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+      addNamesToStudents(lines);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function parseGenderFromName(name) {
+    let gender = 'E';
+    let cleanName = name;
+    if (name.toUpperCase().includes('(K)')) {
+      gender = 'K';
+      cleanName = name.replace(/\(K\)/gi, '').trim();
+    }
+    return { name: cleanName, gender: gender };
+  }
+
+  function addNamesToStudents(namesArray) {
+    if (namesArray.length === 0) return;
+    namesArray.forEach((rawName, idx) => {
+      const parsed = parseGenderFromName(rawName);
+      const newStudent = {
+        id: Date.now() + Math.random() + idx,
+        name: parsed.name,
+        gender: parsed.gender,
+        image: null,
+        smileCount: 0,
+        sadCount: 0
+      };
+      students.push(newStudent);
+      remaining.push(newStudent);
+    });
+    saveStudentsToStorage();
+    renderSettingsStudentList();
+    updateCounter();
+    alert(`${namesArray.length} öğrenci başarıyla aktarıldı!`);
+  }
+
+  function updateSingleFileLabel(event) {
+    const file = event.target.files[0];
+    const label = document.getElementById('singleFileLabel');
+    if (file) {
+      label.textContent = "✓ Resim Seçildi: " + file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          compressImage(img, function(compressedData) {
+            singleSelectedImageData = compressedData;
+          });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      label.textContent = "📷 Resim Seç (İsteğe Bağlı)";
+      singleSelectedImageData = null;
+    }
+  }
+
+  function addSingleStudent() {
+    const nameInput = document.getElementById('singleNameInput');
+    const rawName = nameInput.value.trim();
+    if (!rawName) { alert("Lütfen öğrenci adını girin."); return; }
+
+    const selectedGender = document.querySelector('input[name="singleGender"]:checked').value;
+    
+    const newStudent = {
+      id: Date.now() + Math.random(),
+      name: rawName,
+      gender: selectedGender,
+      image: singleSelectedImageData,
+      smileCount: 0,
+      sadCount: 0
+    };
+
+    students.push(newStudent);
+    remaining.push(newStudent);
+    saveStudentsToStorage();
+    renderSettingsStudentList();
+    updateCounter();
+
+    nameInput.value = '';
+    document.getElementById('singleFileInput').value = '';
+    document.getElementById('singleFileLabel').textContent = "📷 Resim Seç (İsteğe Bağlı)";
+    singleSelectedImageData = null;
+  }
+
+  function triggerEditImage(studentId) {
+    currentlyEditingStudentId = studentId;
+    document.getElementById('editImageInput').click();
+  }
+
+  function handleEditImageSelect(event) {
+    const file = event.target.files[0];
+    if (!file || !currentlyEditingStudentId) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        compressImage(img, function(compressedData) {
+          const student = students.find(s => s.id === currentlyEditingStudentId);
+          if (student) {
+            student.image = compressedData;
+            const remStudent = remaining.find(s => s.id === currentlyEditingStudentId);
+            if (remStudent) remStudent.image = compressedData;
+            saveStudentsToStorage();
+            renderSettingsStudentList();
+          }
+          currentlyEditingStudentId = null;
+        });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }
+
+  async function handleFolderSelect(event) {
+    const files = Array.from(event.target.files);
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) return;
+
+    const processFile = (file) => {
+      return new Promise((resolve) => {
+        const rawFileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        const parsed = parseGenderFromName(rawFileName);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            compressImage(img, function(compressedData) {
+              resolve({
+                id: Date.now() + Math.random(),
+                name: parsed.name,
+                gender: parsed.gender,
+                image: compressedData,
+                smileCount: 0,
+                sadCount: 0
+              });
+            });
+          };
+          img.onerror = () => resolve(null);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const newStudents = [];
+    for (const file of imageFiles) {
+      const res = await processFile(file);
+      if (res) newStudents.push(res);
+    }
+
+    students.push(...newStudents);
+    remaining.push(...newStudents);
+    saveStudentsToStorage();
+    renderSettingsStudentList();
+    updateCounter();
+    alert(`${newStudents.length} öğrenci yüklendi!`);
+    event.target.value = '';
+  }
+
+  function deleteStudent(id) {
+    students = students.filter(s => s.id !== id);
+    remaining = remaining.filter(s => s.id !== id);
+    if (currentSelectedStudentId === id) {
+      currentSelectedStudentId = null;
+      document.getElementById('evaluationButtons').style.display = 'none';
+    }
+    saveStudentsToStorage();
+    renderSettingsStudentList();
+    updateCounter();
+  }
+
+  function clearAllStudents() {
+    if (confirm("Tüm öğrencileri silmek istediğinize emin misiniz?")) {
+      students = [];
+      remaining = [];
+      currentSelectedStudentId = null;
+      document.getElementById('evaluationButtons').style.display = 'none';
+      localStorage.removeItem('saved_students');
+      localStorage.removeItem('saved_remaining');
+      renderSettingsStudentList();
+      updateCounter();
+    }
+  }
+
+  function resetAllScores() {
+    if (confirm("Tüm puanları sıfırlamak istediğinize emin misiniz?")) {
+      students.forEach(s => { s.smileCount = 0; s.sadCount = 0; });
+      saveStudentsToStorage();
+      renderScoreStudentList();
+    }
+  }
+
+  function updateStudentScore(id, type, amount) {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+
+    if (type === 'smile') {
+      student.smileCount = Math.max(0, (student.smileCount || 0) + amount);
+    } else if (type === 'sad') {
+      student.sadCount = Math.max(0, (student.sadCount || 0) + amount);
+    }
+    saveStudentsToStorage();
+    renderActiveStudentList();
+  }
+
+  function resetSingleStudentScore(id) {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+    student.smileCount = 0;
+    student.sadCount = 0;
+    saveStudentsToStorage();
+    renderActiveStudentList();
+    renderScoreStudentList();
+  }
+
+  function renderActiveStudentList() {
+    const listElem = document.getElementById('active-student-list');
+    if (students.length === 0) {
+      listElem.innerHTML = 'Henüz öğrenci eklenmedi.';
+      return;
+    }
+
+    listElem.innerHTML = '';
+    students.forEach(student => {
+      const div = document.createElement('div');
+      div.className = 'active-student-row';
+      const genderText = student.gender === 'K' ? '👧' : '👦';
+      const smile = student.smileCount || 0;
+      const sad = student.sadCount || 0;
+
+      div.innerHTML = `
+        <div style="flex: 1; display:flex; align-items:center; gap:6px;">
+          <strong>${student.name}</strong> <span>(${genderText})</span>
+        </div>
+        <div class="score-group">
+          <!-- Güleryüz Alanı -->
+          <div class="score-box">
+            <span>😊</span>
+            <span>${smile}</span>
+            <button class="mini-btn btn-plus-green" onclick="updateStudentScore(${student.id}, 'smile', 1)">+</button>
+            <button class="mini-btn btn-minus-green" onclick="updateStudentScore(${student.id}, 'smile', -1)">-</button>
+          </div>
+          <!-- Üzgün Yüz Alanı -->
+          <div class="score-box">
+            <span>😢</span>
+            <span>${sad}</span>
+            <button class="mini-btn btn-plus-red" onclick="updateStudentScore(${student.id}, 'sad', 1)">+</button>
+            <button class="mini-btn btn-minus-red" onclick="updateStudentScore(${student.id}, 'sad', -1)">-</button>
+          </div>
+          <!-- Tekli Sıfırlama Butonu -->
+          <button class="btn-single-reset" onclick="resetSingleStudentScore(${student.id})" title="Bu Öğrencinin Puanlarını Sıfırla">↺ Sıfırla</button>
+        </div>
+      `;
+      listElem.appendChild(div);
+    });
+  }
+
+  function renderSettingsStudentList() {
+    const listElem = document.getElementById('settings-student-list');
+    if (students.length === 0) {
+      listElem.innerHTML = 'Henüz öğrenci eklenmedi.';
+      return;
+    }
+
+    listElem.innerHTML = '';
+    students.forEach(student => {
+      const div = document.createElement('div');
+      div.className = 'student-item';
+      const hasImg = !!student.image;
+      const genderText = student.gender === 'K' ? '👧' : '👦';
+      const btnText = hasImg ? 'Resim Değiştir' : 'Resim Ekle';
+
+      div.innerHTML = `
+        <div style="flex: 1; display:flex; align-items:center; gap:6px;">
+          <strong>${student.name}</strong> <span>(${genderText})</span> ${hasImg ? '📷' : ''}
+        </div>
+        <div class="student-actions">
+          <button class="btn-edit-img" onclick="triggerEditImage(${student.id})">${btnText}</button>
+          <button class="btn-delete" onclick="deleteStudent(${student.id})">Sil</button>
+        </div>
+      `;
+      listElem.appendChild(div);
+    });
+  }
+
+  function renderScoreStudentList() {
+    const listElem = document.getElementById('score-student-list');
+    if (students.length === 0) {
+      listElem.innerHTML = 'Henüz öğrenci eklenmedi.';
+      return;
+    }
+
+    listElem.innerHTML = '';
+    students.forEach(student => {
+      const div = document.createElement('div');
+      div.className = 'score-row';
+      const genderText = student.gender === 'K' ? '👧' : '👦';
+      const smile = student.smileCount || 0;
+      const sad = student.sadCount || 0;
+      
+      const net = smile - sad;
+      let badgeClass = 'score-zero';
+      let scoreDisplay = "";
+
+      if (net > 0) {
+        badgeClass = 'score-positive';
+        scoreDisplay = `😊 +${net}`;
+      } else if (net < 0) {
+        badgeClass = 'score-negative';
+        scoreDisplay = `😢 -${Math.abs(net)}`;
+      } else {
+        badgeClass = 'score-zero';
+        scoreDisplay = `😊 0`;
+      }
+
+      div.innerHTML = `
+        <div>
+          <strong>${student.name}</strong> <span style="font-size:12px; color:#666;">(${genderText})</span>
+        </div>
+        <div class="score-info-area">
+          <div class="score-badge ${badgeClass}">
+            ${scoreDisplay}
+          </div>
+          <button class="btn-single-reset" onclick="resetSingleStudentScore(${student.id})" title="Puanı Sıfırla">↺ Sıfırla</button>
+        </div>
+      `;
+      listElem.appendChild(div);
+    });
+  }
+
+  function rateCurrentStudent(type) {
+    if (!currentSelectedStudentId) return;
+    const student = students.find(s => s.id === currentSelectedStudentId);
+    if (!student) return;
+
+    if (type === 'smile') {
+      student.smileCount = (student.smileCount || 0) + 1;
+      playSmileSuccessSound(); // Güleryüz butonuna basıldığında özel neşeli ses efekti çalması sağlandı
+      triggerSmileConfetti();    // Küçük renkli ödül konfetisi patlatıldı
+    }
+
+    saveStudentsToStorage();
+    document.getElementById('evaluationButtons').style.display = 'none';
+    currentSelectedStudentId = null;
+  }
+
+  function startSelectionProcess() {
+    if (isSelecting) return;
+    if (students.length === 0) { alert("Lütfen önce sağ alttaki 'Öğrenci Yönetimi' bölümünden öğrenci ekleyin."); return; }
+
+    if (remaining.length === 0) {
+      alert("Tüm öğrenciler seçildi! Liste otomatik sıfırlanıyor...");
+      resetList();
+      return;
+    }
+
+    isSelecting = true;
+    const btnSelect = document.getElementById('btnSelect');
+    const flipCard = document.getElementById('flipCard');
+    document.getElementById('evaluationButtons').style.display = 'none';
+    btnSelect.disabled = true;
+
+    if (flipCard.classList.contains('flipped')) {
+      flipCard.classList.remove('flipped');
+      setTimeout(() => { executeSelection(); }, 500);
+    } else {
+      executeSelection();
+    }
+  }
+
+  function executeSelection() {
+    const flipCard = document.getElementById('flipCard');
+    const nameElem = document.getElementById('student-name');
+    const imgElem = document.getElementById('student-image');
+
+    const randomIndex = Math.floor(Math.random() * remaining.length);
+    const selected = remaining.splice(randomIndex, 1)[0];
+    currentSelectedStudentId = selected.id;
+
+    saveStudentsToStorage();
+    nameElem.textContent = selected.name;
+    
+    if (selected.image) {
+      imgElem.src = selected.image;
+    } else {
+      imgElem.src = selected.gender === 'K' ? defaultGirlAvatar : defaultBoyAvatar;
+    }
+    imgElem.style.display = 'block';
+
+    setTimeout(() => {
+      flipCard.classList.add('flipped');
+      setTimeout(() => {
+        triggerConfetti(selected.gender);
+        playCheerSound();
+        speakName(selected.name);
+
+        document.getElementById('evaluationButtons').style.display = 'flex';
+        updateCounter();
+        isSelecting = false;
+        document.getElementById('btnSelect').disabled = false;
+      }, 400);
+    }, 400);
+  }
+
+  function speakName(text) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'tr-TR';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  function resetList() {
+    remaining = [...students];
+    saveStudentsToStorage();
+    currentSelectedStudentId = null;
+    document.getElementById('evaluationButtons').style.display = 'none';
+    const flipCard = document.getElementById('flipCard');
+    flipCard.classList.remove('flipped');
+    
+    setTimeout(() => {
+      document.getElementById('student-name').textContent = "Öğrenci Seçin";
+      document.getElementById('student-image').style.display = 'none';
+      updateCounter();
+    }, 400);
+  }
+
+  function updateCounter() {
+    document.getElementById('counter').textContent = 
+      `Kalan Öğrenci: ` + remaining.length + ` / Toplam: ` + students.length;
+  }
+</script>
+
+</body>
+</html>
